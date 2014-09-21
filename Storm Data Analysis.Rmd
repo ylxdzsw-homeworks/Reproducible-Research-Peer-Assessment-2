@@ -1,0 +1,94 @@
+---
+title: "Storm Data Analysis"
+author: "Zhang Shiwei"
+date: "Sunday, September 21, 2014"
+output: html_document
+---
+
+R Environment Setting
+=====================
+```{r}
+library(knitr)
+library(plyr)
+library(ggplot2)
+Sys.setlocale(category="LC_ALL", locale="English") #this can avoid a strange problem
+sessionInfo()
+```
+
+Reading and Clearing Data
+=========================
+```{r}
+#download("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2","StormData.csv.bz2")
+theData <- read.csv('StormData.csv.bz2', stringsAsFactors=F)
+str(theData)
+```
+I substract some fields that I think useful and droped others.
+```{r}
+theData <- theData[, c("EVTYPE", "FATALITIES", "INJURIES", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP")]
+```
+Fields "xxEXP" means the exponents, so I use a number to replace them.
+```{r}
+theData$PROPDMGEXP <- tolower(theData$PROPDMGEXP)
+theData$CROPDMGEXP <- tolower(theData$CROPDMGEXP)
+replaceEXP <- function(x){
+  if(x %in% c("","-","?","+","0")){
+    0
+  }else if(x == "h"){
+    100
+  }else if(x == "k"){
+    10^3
+  }else if(x == "m"){
+    10^6
+  }else if(x == "b"){
+    10^9
+  }else{
+    10^as.numeric(x)
+  }
+}
+theData$PROPDMG <- theData$PROPDMG*sapply(theData$PROPDMGEXP,replaceEXP)
+theData$CROPDMG <- theData$CROPDMG*sapply(theData$CROPDMGEXP,replaceEXP)
+theData <- theData[c("EVTYPE", "FATALITIES", "INJURIES", "PROPDMG", "CROPDMG")]
+```
+
+Data Analyzing
+==============
+Figure out influence of each evtype.
+```{r}
+fatalities <- aggregate(FATALITIES ~ EVTYPE,theData,sum)
+injuries <- aggregate(INJURIES ~ EVTYPE,theData,sum)
+propdamage <- aggregate(PROPDMG ~ EVTYPE,theData,sum)
+cropdamage <- aggregate(CROPDMG ~ EVTYPE,theData,sum)
+```
+Then sort them.
+```{r}
+fatalities <- fatalities[order(fatalities$FATALITIES,decreasing=T),]
+injuries <- injuries[order(injuries$INJURIES,decreasing=T),]
+propdamage <- propdamage[order(propdamage$PROPDMG,decreasing=T),]
+cropdamage <- cropdamage[order(cropdamage$CROPDMG,decreasing=T),]
+```
+OK, now we can plot them and see which influence most.
+
+Result
+======
+### Top 10 events that are harmful for health
+```{r}
+par(mfrow=c(1,2),mar=c(8,4,2,2))
+barplot(injuries$INJURIES[1:10],names.arg=injuries$EVTYPE[1:10],las=2,main="injuries")
+barplot(fatalities$FATALITIES[1:10],names.arg=fatalities$EVTYPE[1:10],las=2,main="fatalities")
+```
+
+### Top 10 events that are harmful for economy
+```{r}
+par(mfrow=c(1,2),mar=c(8,4,2,2))
+barplot(cropdamage$CROPDMG[1:10],names.arg=cropdamage$EVTYPE[1:10],las=2,main="crop damage")
+barplot(propdamage$PROPDMG[1:10],names.arg=cropdamage$EVTYPE[1:10],las=2,main="prop damage")
+```
+
+
+
+
+
+
+
+
+
